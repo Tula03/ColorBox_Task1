@@ -1,0 +1,101 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+}
+
+#color-box {
+    width: 200px;
+    height: 200px;
+    background-color: transparent; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    font-weight: bold;
+    border: 2px solid black;
+}
+
+#click-count {
+    color: black; 
+}
+
+.button-group {
+    margin-top: 30px;
+}
+
+#undo-btn {
+    margin-right: 30px;
+}
+
+#redo-btn {
+    margin-left: 30px;
+}
+
+.lists {
+    display: flex;
+    justify-content: space-between;
+    width: 280px;
+    margin-top: 20px;
+}
+
+.scrollable-list {
+    width: 100px; 
+    height: 200px; 
+    border: 2px solid black;
+    overflow-y: scroll; 
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+li {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    margin: 5px;
+    border: 1px solid black; 
+    cursor: pointer;
+}
+
+li:hover {
+    opacity: 0.5; 
+}
+
+.dragging {
+    opacity: 0.5;
+}
+
+.drag-over {
+    border: 2px dashed #000; 
+}
+.mobile-toggle-btn{
+    display: none;
+}
+
+
+@media (max-width: 768px) {
+    .lists {
+        display: none;
+    }
+
+    .mobile-toggle-btn {
+        display: block;
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+    }
+
+    .show-lists {
+        display: flex;
+        justify-content: space-between;
+        width: 280px;
+    }
+}
