@@ -90,7 +90,6 @@ function handleTouchMove(event) {
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
 
     if (target && target.tagName === 'LI' && target !== touchItem) {
-        
         target.classList.add('drag-over');
     }
 }
@@ -100,6 +99,7 @@ function handleTouchEnd(event, targetListType) {
 
     const target = document.elementFromPoint(event.changedTouches[0].clientX, event.changedTouches[0].clientY);
 
+    // Check if the target is a list item
     if (target && target.tagName === 'LI' && target !== touchItem) {
         const targetIndex = Array.from(target.closest('ul').children).indexOf(target); // Get the target index
 
@@ -109,18 +109,42 @@ function handleTouchEnd(event, targetListType) {
 
         let color = null;
 
-        const targetColor = sourceListType === 'undo' ? undoStack[targetIndex] : redoStack[targetIndex];
-
-        if (sourceListType === 'undo') {
-            color = undoStack[sourceIndex]; 
-            undoStack[sourceIndex] = targetColor; 
-            undoStack[targetIndex] = color; 
+        if (sourceListType === 'undo' && target.closest('ul').id === 'redo-list') {
+            color = undoStack.splice(sourceIndex, 1)[0]; // Remove from undo stack
+            
+            // If target list is empty, just add at index 0
+            if (redoStack.length === 0) {
+                redoStack.push(color);
+            } else {
+                redoStack.splice(targetIndex, 0, color); 
+            }
+        } else if (sourceListType === 'redo' && target.closest('ul').id === 'undo-list') {
+            color = redoStack.splice(sourceIndex, 1)[0]; // Remove from redo stack
+            
+            // If target list is empty, just add at index 0
+            if (undoStack.length === 0) {
+                undoStack.push(color);
+            } else {
+                undoStack.splice(targetIndex, 0, color); 
+            }
+        } else if (sourceListType === 'undo') {
+            color = undoStack.splice(sourceIndex, 1)[0]; // Remove from undo stack
+            undoStack.splice(targetIndex, 0, color); 
         } else if (sourceListType === 'redo') {
-            color = redoStack[sourceIndex]; 
-            redoStack[sourceIndex] = targetColor; 
-            redoStack[targetIndex] = color; 
+            color = redoStack.splice(sourceIndex, 1)[0]; // Remove from redo stack
+            redoStack.splice(targetIndex, 0, color); 
         }
 
+        updateUndoRedoLists();
+    } else if (target && target.closest('ul').id === 'redo-list' && redoStack.length === 0) {
+        // Handle dropping onto an empty redo list
+        color = undoStack.splice(sourceIndex, 1)[0]; 
+        redoStack.push(color); 
+        updateUndoRedoLists();
+    } else if (target && target.closest('ul').id === 'undo-list' && undoStack.length === 0) {
+        // Handle dropping onto an empty undo list
+        color = redoStack.splice(sourceIndex, 1)[0]; 
+        undoStack.push(color);
         updateUndoRedoLists();
     }
 
@@ -156,6 +180,7 @@ function handleDrop(event, targetListType) {
     const sourceIndex = parseInt(draggedItem.getAttribute('data-index'));
     let color = null;
 
+    // Get the color from the source stack
     if (sourceListType === 'undo') {
         color = undoStack.splice(sourceIndex, 1)[0];
     } else if (sourceListType === 'redo') {
@@ -163,23 +188,33 @@ function handleDrop(event, targetListType) {
     }
 
     let targetIndex;
+    const targetList = event.target.closest('ul');
+
+    // Check if dropped on a list item or the list itself
     if (event.target.tagName === 'LI') {
         targetIndex = parseInt(event.target.getAttribute('data-index'));
-    } else if (event.target.closest('ul').id.includes('redo') && redoStack.length === 0) {
-        targetIndex = 0;
-    } else {
-        targetIndex = targetListType === 'undo' ? undoStack.length : redoStack.length;
+    } else if (targetList) {
+        if (targetList.id === 'redo-list' && redoStack.length === 0) {
+            targetIndex = 0; 
+        } else if (targetList.id === 'undo-list' && undoStack.length === 0) {
+            targetIndex = 0; 
+        } else {
+            targetIndex = targetListType === 'undo' ? undoStack.length : redoStack.length;
+        }
     }
 
+    // Add color to the appropriate stack
     if (targetListType === 'undo') {
         undoStack.splice(targetIndex, 0, color);
     } else if (targetListType === 'redo') {
         redoStack.splice(targetIndex, 0, color);
     }
 
+    // Update the lists after reordering
     updateUndoRedoLists();
     draggedItem = null;
 }
+
 
 function handleColorBoxDrop(event) {
     event.preventDefault();
@@ -193,54 +228,44 @@ function handleDragEnd() {
     draggedItem = null;
 }
 
-
 updateUndoRedoLists();
 addColorBoxDragEvents();
 
-
-document.getElementById('color-btn').addEventListener('click', function() {
-    const currentColor = colorBox.style.backgroundColor;
-    if (currentColor && currentColor !== 'transparent') {
-        undoStack.push(currentColor);
-    }
+document.getElementById('color-btn').addEventListener('click', function () {
+    const currentColor = colorBox.style.backgroundColor || "rgb(255,255,255)"; 
+    undoStack.push(currentColor);
 
     const newColor = getRandomColor();
-    colorBox.style.backgroundColor = newColor;
-    clickCountSpan.style.color = getContrastingColor(newColor);
     clickCount++;
     clickCountSpan.textContent = clickCount;
-
+    colorBox.style.backgroundColor = newColor;
+    clickCountSpan.style.color = getContrastingColor(newColor);
     redoStack = [];
     updateUndoRedoLists();
 });
 
-document.getElementById('undo-btn').addEventListener('click', function() {
+
+document.getElementById('undo-btn').addEventListener('click', function () {
+    const currentColor = colorBox.style.backgroundColor || "rgb(255,255,255)"; 
     if (undoStack.length > 0) {
-        const currentColor = colorBox.style.backgroundColor;
-        if (currentColor) {
-            redoStack.push(currentColor);
-        }
-
-        const lastColor = undoStack.pop();
-        colorBox.style.backgroundColor = lastColor;
-        clickCountSpan.style.color = getContrastingColor(lastColor);
-
-        updateUndoRedoLists();
+        redoStack.push(currentColor); 
+        const color = undoStack.pop();
+        colorBox.style.backgroundColor = color;
+        clickCountSpan.style.color = getContrastingColor(color);
+        updateUndoRedoLists(); 
+        clickCountSpan.textContent = clickCount;
     }
 });
 
-document.getElementById('redo-btn').addEventListener('click', function() {
+
+document.getElementById('redo-btn').addEventListener('click', function () {
     if (redoStack.length > 0) {
-        const currentColor = colorBox.style.backgroundColor;
-        if (currentColor) {
-            undoStack.push(currentColor);
-        }
-
-        const lastColor = redoStack.pop();
-        colorBox.style.backgroundColor = lastColor;
-        clickCountSpan.style.color = getContrastingColor(lastColor);
-
+        const color = redoStack.pop();
+        undoStack.push(color);
         updateUndoRedoLists();
+        colorBox.style.backgroundColor = color;
+        clickCountSpan.style.color = getContrastingColor(color); 
+        clickCountSpan.textContent = clickCount;
     }
 });
 
@@ -249,4 +274,16 @@ const mobileToggleBtn = document.getElementById('mobile-toggle-btn');
 mobileToggleBtn.addEventListener('click', function() {
     const lists = document.querySelector('.lists');
     lists.classList.toggle('show-lists');
+});
+
+document.getElementById('reset-btn').addEventListener('click', function() {
+    // Reset color box and click counter
+    colorBox.style.backgroundColor = "#f0f8ff"; 
+    clickCount = 0;
+    clickCountSpan.textContent = clickCount;
+    clickCountSpan.style.color = 'black';
+    
+    undoStack = [];
+    redoStack = [];
+    updateUndoRedoLists(); 
 });
