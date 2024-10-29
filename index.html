@@ -12,6 +12,8 @@
     
     <div class="container">
         <div id="color-box"><span id="click-count">0</span></div>
+        <button id="mobile-toggle-btn" class="mobile-toggle-btn">Toggle Undo/Redo</button>
+        <button id="mobile-list-btn" class="mobile-toggle-btn">Open/Close Lists</button>
         <div class="button-group">
             <button id="undo-btn">Undo</button>
             <button id="color-btn">Color</button>
@@ -19,16 +21,14 @@
             <button id="reset-btn">Reset</button>
         </div>
         <div class="lists">
-            <div class="scrollable-list">
+            <div class="scrollable-list" id="undo1">
                 <ul id="undo-list"></ul>
             </div>
-            <div class="scrollable-list">
-                <ul id="redo-list"></ul>
+            <div class="scrollable-list" id="redo1">
+                <ul id="redo-list" ></ul>
             </div>
         </div>
     </div>
-
-    <button id="mobile-toggle-btn" class="mobile-toggle-btn">Toggle Undo/Redo</button>
 
     <script src="script.js"></script>
 </body>
