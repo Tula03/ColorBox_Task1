@@ -5,6 +5,14 @@ const colorBox = document.getElementById('color-box');
 const clickCountSpan = document.getElementById('click-count');
 const undoList = document.getElementById('undo-list');
 const redoList = document.getElementById('redo-list');
+const listsContainer = document.querySelector('.lists');
+const mobileToggleBtn = document.getElementById('mobile-toggle-btn'); 
+const mobileListBtn = document.getElementById('mobile-list-btn'); 
+
+let startX; 
+let touchItem; 
+let sourceListType; 
+const SWIPE_THRESHOLD = 30; 
 
 // Function to generate random color
 function getRandomColor() {
@@ -80,78 +88,57 @@ function addDragEvents(item, listType) {
 function handleTouchStart(event) {
     touchItem = event.target;
     sourceListType = touchItem.closest('ul').id.includes('undo') ? 'undo' : 'redo';
+    startX = event.touches[0].clientX; // Get the starting X position
     touchItem.classList.add('dragging');
 }
 
 function handleTouchMove(event) {
-    event.preventDefault(); 
-
-    const touch = event.touches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-
-    if (target && target.tagName === 'LI' && target !== touchItem) {
-        target.classList.add('drag-over');
-    }
+    event.preventDefault();
 }
 
-function handleTouchEnd(event, targetListType) {
+function handleTouchEnd(event) {
     event.preventDefault();
+    const endX = event.changedTouches[0].clientX; // Get the ending X position
+    const distanceX = endX - startX; // Calculate the distance of the swipe
 
-    const target = document.elementFromPoint(event.changedTouches[0].clientX, event.changedTouches[0].clientY);
-
-    // Check if the target is a list item
-    if (target && target.tagName === 'LI' && target !== touchItem) {
-        const targetIndex = Array.from(target.closest('ul').children).indexOf(target); // Get the target index
-
-        const sourceIndex = sourceListType === 'undo'
-            ? Array.from(undoList.children).indexOf(touchItem)
-            : Array.from(redoList.children).indexOf(touchItem);
-
-        let color = null;
-
-        if (sourceListType === 'undo' && target.closest('ul').id === 'redo-list') {
-            color = undoStack.splice(sourceIndex, 1)[0]; // Remove from undo stack
-            
-            // If target list is empty, just add at index 0
-            if (redoStack.length === 0) {
-                redoStack.push(color);
-            } else {
-                redoStack.splice(targetIndex, 0, color); 
-            }
-        } else if (sourceListType === 'redo' && target.closest('ul').id === 'undo-list') {
-            color = redoStack.splice(sourceIndex, 1)[0]; // Remove from redo stack
-            
-            // If target list is empty, just add at index 0
-            if (undoStack.length === 0) {
-                undoStack.push(color);
-            } else {
-                undoStack.splice(targetIndex, 0, color); 
-            }
-        } else if (sourceListType === 'undo') {
-            color = undoStack.splice(sourceIndex, 1)[0]; // Remove from undo stack
-            undoStack.splice(targetIndex, 0, color); 
-        } else if (sourceListType === 'redo') {
-            color = redoStack.splice(sourceIndex, 1)[0]; // Remove from redo stack
-            redoStack.splice(targetIndex, 0, color); 
+    // Determine swipe direction
+    if (Math.abs(distanceX) > SWIPE_THRESHOLD) {
+        if (distanceX > 0) {
+            // Swiped right
+            handleSwipeRight();
+        } else {
+            // Swiped left
+            handleSwipeLeft();
         }
-
-        updateUndoRedoLists();
-    } else if (target && target.closest('ul').id === 'redo-list' && redoStack.length === 0) {
-        // Handle dropping onto an empty redo list
-        color = undoStack.splice(sourceIndex, 1)[0]; 
-        redoStack.push(color); 
-        updateUndoRedoLists();
-    } else if (target && target.closest('ul').id === 'undo-list' && undoStack.length === 0) {
-        // Handle dropping onto an empty undo list
-        color = redoStack.splice(sourceIndex, 1)[0]; 
-        undoStack.push(color);
-        updateUndoRedoLists();
     }
 
     touchItem.classList.remove('dragging');
     touchItem = null;
 }
 
+function handleSwipeRight() {
+    const targetIndex = Array.from(redoList.children).length; // Set to the end of the redo list
+    const sourceIndex = Array.from(undoList.children).indexOf(touchItem);
+
+    // Move color from undo to redo list
+    if (sourceListType === 'undo' && undoStack.length > 0) {
+        const color = undoStack.splice(sourceIndex, 1)[0];
+        redoStack.push(color);
+        updateUndoRedoLists();
+    }
+}
+
+function handleSwipeLeft() {
+    const targetIndex = Array.from(undoList.children).length; // Set to the end of the undo list
+    const sourceIndex = Array.from(redoList.children).indexOf(touchItem);
+
+    // Move color from redo to undo list
+    if (sourceListType === 'redo' && redoStack.length > 0) {
+        const color = redoStack.splice(sourceIndex, 1)[0];
+        undoStack.push(color);
+        updateUndoRedoLists();
+    }
+}
 
 function handleDragStart(event) {
     draggedItem = event.target;
@@ -215,7 +202,6 @@ function handleDrop(event, targetListType) {
     draggedItem = null;
 }
 
-
 function handleColorBoxDrop(event) {
     event.preventDefault();
     const color = draggedItem.style.backgroundColor;
@@ -244,7 +230,6 @@ document.getElementById('color-btn').addEventListener('click', function () {
     updateUndoRedoLists();
 });
 
-
 document.getElementById('undo-btn').addEventListener('click', function () {
     const currentColor = colorBox.style.backgroundColor || "rgb(255,255,255)"; 
     if (undoStack.length > 0) {
@@ -257,27 +242,38 @@ document.getElementById('undo-btn').addEventListener('click', function () {
     }
 });
 
-
 document.getElementById('redo-btn').addEventListener('click', function () {
     if (redoStack.length > 0) {
         const color = redoStack.pop();
         undoStack.push(color);
-        updateUndoRedoLists();
         colorBox.style.backgroundColor = color;
-        clickCountSpan.style.color = getContrastingColor(color); 
+        clickCountSpan.style.color = getContrastingColor(color);
+        updateUndoRedoLists(); 
         clickCountSpan.textContent = clickCount;
     }
 });
 
-
-const mobileToggleBtn = document.getElementById('mobile-toggle-btn');
-mobileToggleBtn.addEventListener('click', function() {
-    const lists = document.querySelector('.lists');
-    lists.classList.toggle('show-lists');
+// Toggle button functionality for mobile view
+mobileListBtn.addEventListener('click', () => {
+    listsContainer.classList.toggle('show-lists');
+    if (listsContainer.classList.contains('show-lists')) {
+        listsContainer.classList.add('undo-visible');
+        listsContainer.classList.remove('redo-visible');
+    } else {
+        listsContainer.classList.remove('undo-visible', 'redo-visible');
+    }
 });
 
+mobileToggleBtn.addEventListener('click', () => {
+    if (listsContainer.classList.contains('undo-visible')) {
+        listsContainer.classList.remove('undo-visible');
+        listsContainer.classList.add('redo-visible');
+    } else {
+        listsContainer.classList.remove('redo-visible');
+        listsContainer.classList.add('undo-visible');
+    }
+});
 document.getElementById('reset-btn').addEventListener('click', function() {
-    // Reset color box and click counter
     colorBox.style.backgroundColor = "#f0f8ff"; 
     clickCount = 0;
     clickCountSpan.textContent = clickCount;
